@@ -5,8 +5,9 @@
  * Tourne sur GitHub Actions, jamais sur l'infrastructure ImmoWP : une sonde
  * hébergée sur le serveur qu'elle surveille reste muette au pire moment.
  *
- * Elle n'utilise aucun secret : tous les points sondés sont publics, et
- * l'agrégat par connecteur est déjà anonymisé par l'API.
+ * Elle n'utilise aucun secret : tous les points sondés sont publics. Elle ne
+ * publie que l'état des services ImmoWP ; l'état par connecteur métier est
+ * privé et se consulte dans api_status.php (clé maître).
  *
  *   node status-probe.mjs --out status-data
  *
@@ -20,7 +21,6 @@ const HISTORY_DAYS = 90;
 const TIMEOUT_MS = 15000;
 const RETRY_DELAY_MS = 3000;
 const USER_AGENT = 'ImmoWP-StatusProbe/1.0 (+https://www.immowp.fr/status)';
-const CONNECTORS_URL = 'https://api.immowp.com/v1/status/public';
 
 const COMPONENTS = [
   {
@@ -135,32 +135,9 @@ async function probe(component) {
   return { ...component, ...(await attempt(component)) };
 }
 
-async function fetchConnectors() {
-  try {
-    const response = await fetch(CONNECTORS_URL, {
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      headers: { 'User-Agent': USER_AGENT, 'Cache-Control': 'no-cache' },
-    });
-    if (!response.ok) return null;
-    const body = await response.json();
-    if (!Array.isArray(body?.data?.connectors)) return null;
-    return {
-      connectors: body.data.connectors,
-      windowHours: body.data.method?.window_hours ?? 48,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function overallState(components, connectors) {
+function overallState(components) {
   if (components.some((component) => component.state === 'down')) return 'down';
   if (components.some((component) => component.state === 'degraded')) return 'degraded';
-  // Un éditeur métier en panne ne met pas ImmoWP à l'arrêt, mais des clients
-  // sont sans synchronisation : la page ne peut pas rester au vert.
-  if (connectors.some((connector) => connector.state === 'down' || connector.state === 'degraded')) {
-    return 'degraded';
-  }
   return 'operational';
 }
 
@@ -179,11 +156,9 @@ async function main() {
   const dir = outputDir();
   await mkdir(dir, { recursive: true });
 
-  const previous = await readJson(join(dir, 'latest.json'), null);
   const history = pruneHistory(await readJson(join(dir, 'history.json'), { days: {} }));
 
   const results = await Promise.all(COMPONENTS.map(probe));
-  const remote = await fetchConnectors();
 
   const components = results.map((result) => ({
     id: result.id,
@@ -194,14 +169,10 @@ async function main() {
     detail: result.detail,
   }));
 
-  const connectors = remote?.connectors ?? previous?.connectors ?? [];
   const snapshot = {
     generated_at: new Date().toISOString(),
-    overall: overallState(components, connectors),
+    overall: overallState(components),
     components,
-    connectors,
-    connectors_stale: remote === null,
-    connectors_window_hours: remote?.windowHours ?? previous?.connectors_window_hours ?? 48,
   };
 
   const today = snapshot.generated_at.slice(0, 10);
@@ -222,11 +193,6 @@ async function main() {
       `  ${component.state.padEnd(12)} ${component.id.padEnd(10)} ${component.latency_ms ?? '—'} ms ${component.detail ?? ''}`,
     );
   }
-  console.log(
-    remote
-      ? `  connecteurs : ${connectors.length} agrégés (fenêtre ${snapshot.connectors_window_hours} h)`
-      : '  connecteurs : agrégat injoignable, valeurs du relevé précédent conservées',
-  );
 }
 
 main().catch((error) => {

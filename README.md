@@ -6,7 +6,6 @@ Toutes les 30 minutes (au rythme réel du planificateur GitHub), le workflow
 `status-probe` interroge depuis GitHub Actions, hors de l'infrastructure ImmoWP :
 
 - `https://api.immowp.com/v1/health` — santé de l'API ;
-- `https://api.immowp.com/v1/status/public` — état agrégé et anonymisé des connecteurs ;
 - `https://update.immowp.fr/immowp_info.json` — manifeste de mise à jour du plugin ;
 - `https://www.immowp.fr/` et le catalogue de démonstration.
 
@@ -18,9 +17,9 @@ Le résultat est publié sur la branche [`status-data`](../../tree/status-data) 
 Le site les lit sans jeton :
 `https://raw.githubusercontent.com/lebrunflorian/immowp-status/status-data/latest.json`.
 
-Ce dépôt ne contient aucun secret et aucune donnée client. Les volumes par
-connecteur sont exprimés par tranche ; le détail nominatif reste dans l'API,
-protégé par la clé maître.
+Ce dépôt ne contient aucun secret et aucune donnée client. L'état par
+connecteur métier (Apimo, Hektor, Netty…) n'est pas publié : il se consulte
+dans `api_status.php`, protégé par la clé maître.
 
 ## Lancer en local
 

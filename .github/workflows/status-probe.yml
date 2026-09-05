@@ -6,8 +6,9 @@
 #
 # Ce dépôt est public : le site www.immowp.fr lit l'instantané sans jeton sur
 #   https://raw.githubusercontent.com/lebrunflorian/immowp-status/status-data/latest.json
-# La sonde n'utilise aucun secret et l'agrégat par connecteur est déjà anonymisé
-# par l'API (ni nom de client, ni domaine, ni volume exact).
+# La sonde n'utilise aucun secret et ne publie aucune donnée client : seuls les
+# services ImmoWP sont sondés. L'état par connecteur métier est privé
+# (api_status.php, clé maître) et n'apparaît pas ici.
 #
 # Le résultat est force-poussé sur la branche `status-data` (un seul commit,
 # sans historique git : l'historique utile est dans history.json).
