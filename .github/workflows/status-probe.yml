@@ -1,0 +1,69 @@
+# Sonde de la page de statut (https://www.immowp.fr/status).
+#
+# Tourne chez GitHub, hors de l'infrastructure ImmoWP : c'est tout l'intérêt.
+# Une sonde hébergée sur le VPS qu'elle surveille tomberait avec lui et la page
+# resterait au vert pendant la panne.
+#
+# Ce dépôt est public : le site www.immowp.fr lit l'instantané sans jeton sur
+#   https://raw.githubusercontent.com/lebrunflorian/immowp-status/status-data/latest.json
+# La sonde n'utilise aucun secret et l'agrégat par connecteur est déjà anonymisé
+# par l'API (ni nom de client, ni domaine, ni volume exact).
+#
+# Le résultat est force-poussé sur la branche `status-data` (un seul commit,
+# sans historique git : l'historique utile est dans history.json).
+#
+# GitHub désactive les workflows planifiés d'un dépôt public sans activité
+# depuis 60 jours ; le commit poussé à chaque relevé compte comme activité et
+# maintient la planification. Les minutes Actions sont gratuites sur un dépôt
+# public. Le planificateur GitHub peut décaler un cron de plusieurs heures aux
+# heures chargées : la page affiche l'âge du dernier relevé.
+name: status-probe
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: status-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Récupérer le relevé précédent
+        run: |
+          mkdir -p status-data
+          git fetch --depth=1 origin status-data || true
+          git show origin/status-data:latest.json > status-data/latest.json 2>/dev/null || true
+          git show origin/status-data:history.json > status-data/history.json 2>/dev/null || true
+          # Un `git show` en échec laisse un fichier vide : on préfère l'absence.
+          [ -s status-data/latest.json ] || rm -f status-data/latest.json
+          [ -s status-data/history.json ] || rm -f status-data/history.json
+
+      - name: Sonder
+        run: node status-probe.mjs --out status-data | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Publier l'instantané
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd status-data
+          git init -q -b status-data
+          git config user.name 'immowp-status-bot'
+          git config user.email 'status-bot@users.noreply.github.com'
+          git add -A
+          git commit -qm "relevé $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push -q --force \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" status-data
