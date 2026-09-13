@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-09-13T06:32:34.723Z",
+  "overall": "operational",
+  "components": [
+    {
+      "id": "api",
+      "name": "API ImmoWP",
+      "description": "api.immowp.com — lecture des annonces et comptes rendus de synchronisation",
+      "state": "operational",
+      "latency_ms": 1137,
+      "detail": null
+    },
+    {
+      "id": "catalogue",
+      "name": "Catalogue de démonstration",
+      "description": "Chaîne complète, du site au logiciel métier, sur le compte de démonstration",
+      "state": "operational",
+      "latency_ms": 2634,
+      "detail": null
+    },
+    {
+      "id": "updates",
+      "name": "Mises à jour du plugin",
+      "description": "update.immowp.fr — manifeste lu par les sites WordPress équipés",
+      "state": "operational",
+      "latency_ms": 1114,
+      "detail": null
+    },
+    {
+      "id": "site",
+      "name": "Site et documentation",
+      "description": "www.immowp.fr — site public, documentation et espace client",
+      "state": "operational",
+      "latency_ms": 1800,
+      "detail": null
+    }
+  ]
+}
